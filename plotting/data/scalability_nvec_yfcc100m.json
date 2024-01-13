@@ -1,0 +1,27 @@
+{
+    "shared_ivf": [
+        {"num_vectors": 200000, "query_qps_avg": 751.2312008036452, "query_lat_avg": 0.0013311481191545683},
+        {"num_vectors": 400000, "query_qps_avg": 387.5560323589515, "query_lat_avg": 0.0025802720548903945},
+        {"num_vectors": 800000, "query_qps_avg": 178.99278612380692, "query_lat_avg": 0.00558681733300868}
+    ],
+    "shared_hnsw": [
+        {"num_vectors": 200000, "query_qps_avg": 2117.7285438013787, "query_lat_avg": 0.0004722040522743173},
+        {"num_vectors": 400000, "query_qps_avg": 1016.8289731956295, "query_lat_avg": 0.0009834495538195175},
+        {"num_vectors": 800000, "query_qps_avg": 439.8290518572167, "query_lat_avg": 0.0022736106125264177}
+    ],
+    "separate_ivf": [
+        {"num_vectors": 200000, "query_qps_avg": 8608.834841906135, "query_lat_avg": 0.00011615973803239835},
+        {"num_vectors": 400000, "query_qps_avg": 7001.1920447317, "query_lat_avg": 0.00014283281955570498},
+        {"num_vectors": 800000, "query_qps_avg": 6893.37730622323, "query_lat_avg": 0.00014506677287158155}
+    ],
+    "separate_hnsw": [
+        {"num_vectors": 200000, "query_qps_avg": 12721.132435669082, "query_lat_avg": 7.860935377074422e-05},
+        {"num_vectors": 400000, "query_qps_avg": 13275.357508578078, "query_lat_avg": 7.532753821159502e-05},
+        {"num_vectors": 800000, "query_qps_avg": 13514.478173987041, "query_lat_avg": 7.399471789630928e-05}
+    ],
+    "shared_curator": [
+        {"num_vectors": 200000, "query_qps_avg": 7439.131839595589, "query_lat_avg": 0.00013442428788227562},
+        {"num_vectors": 400000, "query_qps_avg": 5873.520639409565, "query_lat_avg": 0.00017025563735833317},
+        {"num_vectors": 800000, "query_qps_avg": 5424.6921906074085, "query_lat_avg": 0.0001843422566411144}
+    ]
+}

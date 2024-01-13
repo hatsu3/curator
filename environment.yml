@@ -1,0 +1,31 @@
+channels:
+  - pytorch
+  - nvidia
+  - defaults
+dependencies:
+  - cmake=3.26.4
+  - cython=3.0.0
+  - gxx_linux-64=11.2.0
+  - pandas=2.0.3
+  - pip==23.3
+  - psutil==5.9.0
+  - python=3.10.12
+  - pytorch=2.0.1
+  - pytorch-cuda=11.8
+  - seaborn=0.12.2
+  - tqdm=4.65.0
+  - transformers=4.29.2
+  - pip:
+      - ansicolors==1.1.8
+      - datasets==2.12.0
+      - docker==6.0.1
+      - fire==0.5.0
+      - h5py==3.8.0
+      - huggingface-hub==0.16.4
+      - matplotlib==3.6.3
+      - numpy==1.24.2
+      - parse==1.19.1
+      - protobuf==4.23.4
+      - scikit-learn==1.2.1
+      - scipy==1.11.1
+      - tokenizers==0.13.3

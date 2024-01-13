@@ -1,0 +1,27 @@
+{
+    "shared_ivf": [
+        {"num_tenants": 200, "index_size_kb_avg": 1212064.0},
+        {"num_tenants": 400, "index_size_kb_avg": 1479476.0},
+        {"num_tenants": 800, "index_size_kb_avg": 1719960.0}
+    ],
+    "shared_hnsw": [
+        {"num_tenants": 200, "index_size_kb_avg": 1418184.0},
+        {"num_tenants": 400, "index_size_kb_avg": 1680888.0},
+        {"num_tenants": 800, "index_size_kb_avg": 1830228.0}
+    ],
+    "separate_ivf": [
+        {"num_tenants": 200, "index_size_kb_avg": 2536096.0},
+        {"num_tenants": 400, "index_size_kb_avg": 4754496.0},
+        {"num_tenants": 800, "index_size_kb_avg": 9240704.0}
+    ],
+    "separate_hnsw": [
+        {"num_tenants": 200, "index_size_kb_avg": 4051388.0},
+        {"num_tenants": 400, "index_size_kb_avg": 7920108.0},
+        {"num_tenants": 800, "index_size_kb_avg": 15599296.0}
+    ],
+    "shared_curator": [
+        {"num_tenants": 200, "index_size_kb_avg": 1339880.0},
+        {"num_tenants": 400, "index_size_kb_avg": 1665900.0},
+        {"num_tenants": 800, "index_size_kb_avg": 2064320.0}
+    ]
+}
