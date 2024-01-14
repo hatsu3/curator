@@ -17,6 +17,8 @@ namespace faiss {
  */
 struct MultiTenantIndexIVFFlatBF : MultiTenantIndexIVFFlat {
     std::vector<bloom_filter> ivf_bfs;
+    std::vector<std::unordered_map<tid_t, size_t>> tenant_nvecs;
+
     bloom_parameters bf_params;
     size_t bf_capacity;
     float bf_false_pos;

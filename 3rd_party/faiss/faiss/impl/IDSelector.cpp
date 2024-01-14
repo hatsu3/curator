@@ -128,8 +128,8 @@ bool IDSelectorBitmap::is_member(idx_t ii) const {
  * MultiTenantIDSelector
  ******************************************/
 
-MultiTenantIDSelector::MultiTenantIDSelector(tid_t tid, const AccessMap* access_map, const IDSelector* base_sel)
-    : tid(tid), access_map(access_map), base_sel(base_sel) {}
+MultiTenantIDSelector::MultiTenantIDSelector(tid_t tid, const AccessMap* access_map, const DirectMap* direct_map, const IDSelector* base_sel)
+    : tid(tid), access_map(access_map), direct_map(direct_map), base_sel(base_sel) {}
 
 bool MultiTenantIDSelector::is_member(idx_t id) const {
     // if a base selector is provided, perform prefiltering
@@ -137,31 +137,17 @@ bool MultiTenantIDSelector::is_member(idx_t id) const {
         return false;
     }
 
-    // if the vector is not found, return false
-    // consider raising an exception instead
-    auto it = access_map->vid_to_bid.find(id);
-    if (it == access_map->vid_to_bid.end()) {
-        return false;
-    }
-
     // check if the tenant is allowed to access it
     if (tid == ALL_TENANTS) {
         return true;
-    }
-
-    // search the sorted vector of tenant ids using lower_bound
-    // only perform binary search if the vector is large enough
-    idx_t bucket_id = it->second;
-    auto& ttv = access_map->tid_to_vids[bucket_id];
+    } 
     
-    // if the bucket does not contain any vector accessible to the tenant, return false
-    // this should never happen because we will perform Bloom filter checks before calling this function
-    if (ttv.find(tid) == ttv.end()) {
+    auto it = access_map->find(id);
+    if (it == access_map->end()) {
         return false;
+    } else {
+        return it->second.find(tid) != it->second.end();
     }
-
-    // check whether the vector with the given id is accessible to the tenant
-    return ttv.at(tid).find(id) != ttv.at(tid).end();
 }
 
 } // namespace faiss

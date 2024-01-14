@@ -82,6 +82,8 @@ typedef uint64_t size_t;
 #include <faiss/MultiTenantIndexIVFFlatBF.h>
 #include <faiss/MultiTenantIndexIVFFlatSep.h>
 #include <faiss/MultiTenantIndexIVFHierarchical.h>
+#include <faiss/hnswlib/hnswlib.h>
+#include <faiss/MultiTenantIndexHNSW.h>
 #include <faiss/IndexIVFIndependentQuantizer.h>
 
 #include <faiss/IndexFastScan.h>
@@ -467,6 +469,8 @@ void gpu_sync_all_devices()
 %include  <faiss/MultiTenantIndexIVFFlatBF.h>
 %include  <faiss/MultiTenantIndexIVFFlatSep.h>
 %include  <faiss/MultiTenantIndexIVFHierarchical.h>
+%include  <faiss/hnswlib/hnswlib.h>
+%include  <faiss/MultiTenantIndexHNSW.h>
 
 %warnfilter(509) faiss::nsg::Graph< int >::at(int,int);
 

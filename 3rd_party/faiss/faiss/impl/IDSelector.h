@@ -11,6 +11,7 @@
 #include <vector>
 
 #include <faiss/Index.h>
+#include <faiss/invlists/DirectMap.h>
 
 /** IDSelector is intended to define a subset of vectors to handle (for removal
  * or as subset to search) */
@@ -173,11 +174,12 @@ struct IDSelectorXOr : IDSelector {
 struct MultiTenantIDSelector : IDSelector {
     tid_t tid;
     const AccessMap* access_map;
+    const DirectMap* direct_map;
     const IDSelector* base_sel;
 
     static const tid_t ALL_TENANTS = -1;
 
-    MultiTenantIDSelector(tid_t tid, const AccessMap* access_map, const IDSelector* base_sel);
+    MultiTenantIDSelector(tid_t tid, const AccessMap* access_map, const DirectMap* direct_map, const IDSelector* base_sel);
 
     bool is_member(idx_t id) const final;
 };

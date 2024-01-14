@@ -58,8 +58,7 @@ void MultiTenantIndexIVFFlatBF::train(idx_t n, const float* x, tid_t tid) {
         ivf_bfs[i] = bloom_filter(bf_params);
     }
 
-    // create an entry in access_map.tid_to_vids for each inverted list
-    access_map.tid_to_vids.resize(nlist);
+    tenant_nvecs.resize(nlist);
 }
 
 void MultiTenantIndexIVFFlatBF::add_vector_with_ids(
@@ -67,19 +66,26 @@ void MultiTenantIndexIVFFlatBF::add_vector_with_ids(
         const float* x,
         const idx_t* xids,
         tid_t tid) {
-    // insert vectors into the corresponding inverted lists
-    idx_t* coarse_idx = new idx_t[n];
-    quantizer->assign(n, x, coarse_idx);
     
+    // update access map
     for (idx_t i = 0; i < n; i++) {
         size_t xid = xids ? xids[i] : ntotal + i;
-        idx_t bucket_idx = coarse_idx[i];
-        access_map.vid_to_bid[xid] = bucket_idx;
-        access_map.tid_to_vids[bucket_idx][tid].insert(xid);
+        auto access_list_it = access_map.find(xid);
+        FAISS_THROW_IF_NOT_MSG(access_list_it == access_map.end(), "vector already exists in the index");
+        access_map[xid].insert(tid);
         vector_owners[xid] = tid;
     }
     
+    // add vectors to inverted lists and direct map
+    idx_t* coarse_idx = new idx_t[n];
+    quantizer->assign(n, x, coarse_idx);
     add_core(n, x, xids, coarse_idx);
+    
+    // update the counters at each bucket
+    for (idx_t i = 0; i < n; i++) {
+        idx_t list_no = coarse_idx[i];
+        tenant_nvecs[list_no][tid] += 1;
+    }
 
     // update the bloom filters
     for (idx_t i = 0; i < n; i++) {
@@ -88,13 +94,17 @@ void MultiTenantIndexIVFFlatBF::add_vector_with_ids(
 }
 
 void MultiTenantIndexIVFFlatBF::grant_access(idx_t xid, tid_t tid) {
-    // update the vector-to-tenant mapping
-    idx_t bucket_idx = access_map.vid_to_bid[xid];
-    auto& ttv = access_map.tid_to_vids[bucket_idx];
-    if (ttv.find(tid) == ttv.end()) {
-        ttv.emplace(tid, std::unordered_set<idx_t>());
-    }
-    ttv[tid].insert(xid);
+    // update the access map
+    auto access_list_it = access_map.find(xid);
+    FAISS_THROW_IF_NOT_MSG(access_list_it != access_map.end(), "vector does not exist in the index");
+    access_list_it->second.insert(tid);
+
+    // update the counters
+    idx_t bucket_idx = lo_listno(direct_map.get(xid));
+    tenant_nvecs[bucket_idx][tid] += 1;
+
+    // update the bloom filter
+    ivf_bfs[bucket_idx].insert(tid);
 }
 
 bool MultiTenantIndexIVFFlatBF::remove_vector(idx_t xid, tid_t tid) {
@@ -104,31 +114,28 @@ bool MultiTenantIndexIVFFlatBF::remove_vector(idx_t xid, tid_t tid) {
     }
     vector_owners.erase(xid);
 
-    // remove the vector from the direct map
-    if (!direct_map.no()) {
-        assert(direct_map.type == DirectMap::Hashtable);
-        direct_map.hashtable.erase(xid);
+    // update the counters
+    bool update_bf = false;
+    idx_t bucket_idx = lo_listno(direct_map.get(xid));
+    for (tid_t tenant : access_map.at(xid)) {
+        if (--tenant_nvecs[bucket_idx].at(tenant) == 0) {
+            tenant_nvecs[bucket_idx].erase(tenant);
+            update_bf = true;
+        }
     }
 
     // remove the vector from the access map
-    idx_t bucket_idx = access_map.vid_to_bid.at(xid);
-    access_map.vid_to_bid.erase(xid);
+    access_map.erase(xid);
 
-    bool update_bf = false;
-    auto& tid_to_vids = access_map.tid_to_vids[bucket_idx];
-    for (auto it = tid_to_vids.begin(); it != tid_to_vids.end(); ) {
-        if (it->second.erase(xid) && it->second.empty()) {
-            it = tid_to_vids.erase(it);
-            update_bf = true;
-        } else {
-            ++it;
-        }
-    }
+    // remove the vector from the direct map and inverted lists
+    IDSelectorArray selector(1, &xid);
+    direct_map.remove_ids(selector, invlists);
 
     // recompute the bloom filter if necessary
     if (update_bf) {
         bloom_filter new_bf(bf_params);
-        for (const auto& tid : tid_to_vids) {
+        for (const auto& tid : tenant_nvecs[bucket_idx]) {
+            FAISS_THROW_IF_NOT_MSG(tid.second > 0, "counter should be positive");
             new_bf.insert(tid.first);
         }
         ivf_bfs[bucket_idx] = new_bf;
@@ -139,23 +146,22 @@ bool MultiTenantIndexIVFFlatBF::remove_vector(idx_t xid, tid_t tid) {
 }
 
 bool MultiTenantIndexIVFFlatBF::revoke_access(idx_t xid, tid_t tid) {
-    idx_t bucket_idx = access_map.vid_to_bid.at(xid);
-    auto& tid_to_vids = access_map.tid_to_vids[bucket_idx];
-    if (tid_to_vids.find(tid) == tid_to_vids.end()) {
-        return false;
-    }
-    
+    // update the counters
     bool update_bf = false;
-    bool success = tid_to_vids[tid].erase(xid);
-    if (success && tid_to_vids[tid].empty()) {
-        tid_to_vids.erase(tid);
+    idx_t bucket_idx = lo_listno(direct_map.get(xid));
+    if (--tenant_nvecs[bucket_idx].at(tid) == 0) {
+        tenant_nvecs[bucket_idx].erase(tid);
         update_bf = true;
     }
+
+    // update the access map
+    bool success = access_map.at(xid).erase(tid);
 
     // recompute the bloom filter if necessary
     if (update_bf) {
         bloom_filter new_bf(bf_params);
-        for (const auto& tid : tid_to_vids) {
+        for (const auto& tid : tenant_nvecs[bucket_idx]) {
+            FAISS_THROW_IF_NOT_MSG(tid.second > 0, "counter should be positive");
             new_bf.insert(tid.first);
         }
         ivf_bfs[bucket_idx] = new_bf;
@@ -303,7 +309,7 @@ void MultiTenantIndexIVFFlatBF::search_preassigned(
         }
     }
 
-    MultiTenantIDSelector mt_sel(tid, &access_map, sel);
+    MultiTenantIDSelector mt_sel(tid, &access_map, &direct_map, sel);
 
     FAISS_THROW_IF_NOT_MSG(
             !(sel && store_pairs),
@@ -467,7 +473,12 @@ void MultiTenantIndexIVFFlatBF::search_preassigned(
                     if (!scanner->sel) {
                         list_size_tenant = list_size;
                     } else {
-                        list_size_tenant = access_map.tid_to_vids[key].at(tid).size();
+                        auto it = tenant_nvecs[key].find(tid);
+                        if (it != tenant_nvecs[key].end()) {
+                            list_size_tenant = it->second;
+                        } else {
+                            list_size_tenant = 0;
+                        }
                     }
 
                     return list_size_tenant;

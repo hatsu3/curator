@@ -41,15 +41,10 @@ MultiTenantIndexIVF::MultiTenantIndexIVF(
           invlists(new ArrayInvertedLists(nlist, code_size)),
           own_invlists(true),
           code_size(code_size) {
-    FAISS_THROW_IF_NOT(d == quantizer->d);
+    FAISS_THROW_IF_NOT_MSG(d == quantizer->d, "vector dim mismatch between index and quantizer");
+    FAISS_THROW_IF_NOT_MSG(metric_type == METRIC_L2, "only L2 distance supported");
     is_trained = quantizer->is_trained && (quantizer->ntotal == nlist);
-    // Spherical by default if the metric is inner_product
-    if (metric_type == METRIC_INNER_PRODUCT) {
-        cp.spherical = true;
-    }
-    access_map.tid_to_vids.resize(nlist);
-
-    parallel_mode = getenv("BATCH_QUERY") == nullptr ? 1 : 0;
+    set_direct_map_type(DirectMap::Hashtable);
 }
 
 MultiTenantIndexIVF::MultiTenantIndexIVF() {}
@@ -65,26 +60,25 @@ void MultiTenantIndexIVF::add_vector_with_ids(
         const idx_t* xids,
         tid_t tid) {
     
-    // insert vectors into the corresponding inverted lists
-    std::unique_ptr<idx_t[]> coarse_idx(new idx_t[n]);
-    quantizer->assign(n, x, coarse_idx.get());
-
     // update access map
     for (idx_t i = 0; i < n; i++) {
         idx_t xid = xids ? xids[i] : ntotal + i;
-        idx_t bucket_idx = coarse_idx[i];
-        access_map.vid_to_bid[xid] = bucket_idx;
-        access_map.tid_to_vids[bucket_idx][tid].insert(xid);
+        auto access_list_it = access_map.find(xid);
+        FAISS_THROW_IF_NOT_MSG(access_list_it == access_map.end(), "vector already exists in the index");
+        access_map[xid].insert(tid);
         vector_owners[xid] = tid;
     }
 
-    // add vectors to inverted lists
+    // add vectors to inverted lists and direct map
+    std::unique_ptr<idx_t[]> coarse_idx(new idx_t[n]);
+    quantizer->assign(n, x, coarse_idx.get());
     add_core(n, x, xids, coarse_idx.get());
 }
 
 void MultiTenantIndexIVF::grant_access(idx_t xid, tid_t tid) {
-    idx_t bucket_index = access_map.vid_to_bid[xid];
-    access_map.tid_to_vids[bucket_index][tid].insert(xid);
+    auto access_list_it = access_map.find(xid);
+    FAISS_THROW_IF_NOT_MSG(access_list_it != access_map.end(), "vector does not exist in the index");
+    access_list_it->second.insert(tid);
 }
 
 void MultiTenantIndexIVF::add_sa_codes(idx_t n, const uint8_t* codes, const idx_t* xids) {
@@ -309,7 +303,7 @@ void MultiTenantIndexIVF::search_preassigned(
         }
     }
 
-    MultiTenantIDSelector mt_sel(tid, &access_map, sel);
+    MultiTenantIDSelector mt_sel(tid, &access_map, &direct_map, sel);
 
     FAISS_THROW_IF_NOT_MSG(
             !(sel && store_pairs),
@@ -665,7 +659,7 @@ void MultiTenantIndexIVF::range_search_preassigned(
     idx_t max_codes = params ? params->max_codes : this->max_codes;
     IDSelector* sel = params ? params->sel : nullptr;
 
-    MultiTenantIDSelector mt_sel(tid, &access_map, sel);
+    MultiTenantIDSelector mt_sel(tid, &access_map, &direct_map, sel);
 
     FAISS_THROW_IF_NOT_MSG(
             !invlists->use_iterator || (max_codes == 0 && store_pairs == false),
@@ -937,36 +931,25 @@ void MultiTenantIndexIVF::reset() {
 }
 
 bool MultiTenantIndexIVF::remove_vector(idx_t xid, tid_t tid) {
-    // check whether the tenant has access to the vector
+    // check if the querying tenant is the owner of the vector
     if (vector_owners.at(xid) != tid) {
         return false;
     }
     vector_owners.erase(xid);
 
-    // remove the vector from the direct map
-    if (!direct_map.no()) {
-        assert(direct_map.type == DirectMap::Hashtable);
-        direct_map.hashtable.erase(xid);
-    }
-
     // remove the vector from the access map
-    idx_t bucket_idx = access_map.vid_to_bid.at(xid);
-    access_map.vid_to_bid.erase(xid);
-    for (auto& ttv : access_map.tid_to_vids[bucket_idx]) {
-        ttv.second.erase(xid);
-    }
+    access_map.erase(xid);
 
-    // remove the vector from the inverted lists
-    // IDSelectorArray selector(1, &xid);
-    // direct_map.remove_ids(selector, invlists);
+    // remove the vector from the direct map and inverted lists
+    IDSelectorArray selector(1, &xid);
+    direct_map.remove_ids(selector, invlists);
 
     ntotal -= 1;
     return true;
 }
 
 bool MultiTenantIndexIVF::revoke_access(idx_t xid, tid_t tid) {
-    idx_t bucket_idx = access_map.vid_to_bid.at(xid);
-    bool success = access_map.tid_to_vids[bucket_idx][tid].erase(xid);
+    bool success = access_map.at(xid).erase(tid);
     return success;
 }
 

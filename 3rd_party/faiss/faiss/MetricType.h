@@ -53,19 +53,8 @@ constexpr bool is_similarity_metric(MetricType metric_type) {
 // tenant id, -1 means any tenant
 using tid_t = int64_t;
 
-struct AccessMap {
-    /* For each bucket, we maintain a mapping between tenant ID and a list 
-     * of vector IDs (corresponding to the vectors accessible to the tenant). 
-     * We also maintain a mapping between vector ID and the ID of the bucket 
-     * that contains the video.
-     */
-
-    // Maps a vector to the bucket that contains it
-    std::unordered_map<idx_t, idx_t> vid_to_bid;
-
-    // For each bucket, maps a tenant to the list of vectors that are accessible to it
-    std::vector<std::unordered_map<tid_t, std::unordered_set<idx_t>>> tid_to_vids;
-};
+// access list of each vector in the index
+using AccessMap = std::unordered_map<idx_t, std::unordered_set<tid_t>>;
 
 } // namespace faiss
 
