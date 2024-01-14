@@ -51,6 +51,14 @@ conda activate ann_bench
 
 ```bash
 cd 3rd_party/faiss
+
+cmake -B build . \
+  -DFAISS_ENABLE_GPU=OFF \
+  -DFAISS_ENABLE_PYTHON=ON \
+  -DCMAKE_BUILD_TYPE=Release \
+  -DFAISS_OPT_LEVEL=avx2 \
+  -DBUILD_TESTING=ON
+
 make -C build -j32 faiss_avx2
 make -C build -j32 swigfaiss_avx2
 cd build/faiss/python
