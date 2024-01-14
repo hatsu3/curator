@@ -96,7 +96,7 @@ sudo docker build --rm -t ann-bench .
 Please refer to scripts in `scripts` folder for details. For example, to evaluate Curator on YFCC100M dataset, run the following command:
 
 ```bash
-python=/home/xxx/miniconda3/envs/ann_bench/bin/python
+python=$(which python)  # assuming conda env is activated
 
 sudo ${python} \
 run_parallel_exp.py run_curator_overall_exp \
