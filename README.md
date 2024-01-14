@@ -84,6 +84,10 @@ python -m dataset.arxiv_dataset
 ### Build Docker Image
 
 ```bash
+# Download the cuda-keyring package for updating the CUDA linux GPG repository key
+# https://developer.nvidia.com/blog/updating-the-cuda-linux-gpg-repository-key/
+# Please replace $distro and $arch with your own distro and arch
+wget https://developer.download.nvidia.com/compute/cuda/repos/$distro/$arch/cuda-keyring_1.0-1_all.deb
 sudo docker build --rm -t ann-bench .
 ```
 
