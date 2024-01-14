@@ -73,8 +73,12 @@ yfcc100m_base_url="https://dl.fbaipublicfiles.com/billion-scale-ann-benchmarks/y
 wget -P data/yfcc100m ${yfcc100m_base_url}/base.10M.u8bin
 wget -P data/yfcc100m ${yfcc100m_base_url}/base.metadata.10M.spmat
 
-python -m dataset.yfcc100m_dataset.py
-python -m dataset.arxiv_dataset.py
+mkdir -p data/arxiv
+# manually download arxiv dataset from https://www.kaggle.com/datasets/Cornell-University/arxiv
+# and put it at data/arxiv/arxiv-metadata-oai-snapshot.json
+
+python -m dataset.yfcc100m_dataset
+python -m dataset.arxiv_dataset
 ```
 
 ### Build Docker Image
