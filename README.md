@@ -1,6 +1,8 @@
 # Curator: Efficient Indexing for Multi-Tenant Vector Databases
 
-Curator is an in-memory vector index tailored for multi-tenant queries that simultaneously achieves low memory overhead and high query performance. Curator indexes each tenant’s vectors with a tenant-specific clustering tree and encodes these trees compactly as sub-trees of a shared clustering tree. Each tenant’s clustering tree dynamically adapts to its unique vector distribution, while maintaining a low per-tenant memory footprint.
+Curator is an in-memory vector index tailored for multi-tenant queries that simultaneously achieves low memory overhead and high query performance. Curator indexes each tenant’s vectors with a tenant-specific clustering tree and encodes these trees compactly as sub-trees of a shared clustering tree. Each tenant’s clustering tree dynamically adapts to its unique vector distribution, while maintaining a low per-tenant memory footprint. 
+
+Please refer to our paper for more details: [Curator: Efficient Indexing for Multi-Tenant Vector Databases](https://arxiv.org/abs/2401.07119).
 
 ## Repository Structure
 
